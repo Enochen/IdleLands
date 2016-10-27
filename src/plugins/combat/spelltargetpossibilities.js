@@ -31,7 +31,7 @@ export class SpellTargetPossibilities {
 
   static anyEnemyDead(caster) {
     return _(caster.$battle.allPlayers)
-        .reject(p => p.hp > 0)
+        .reject(p => p.hp <= 0)
         .reject(p => p.party === caster.party)
         .value().length >= 1;
   }
