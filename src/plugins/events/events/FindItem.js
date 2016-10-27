@@ -10,7 +10,9 @@ export const WEIGHT = 70;
 
 // Get given the opportunity to change items
 export class FindItem extends Event {
-  static operateOn(player, forceItem) {
+  static WEIGHT = WEIGHT;
+
+  static operateOn(player, opts = {}, forceItem) {
 
     let item = forceItem;
 
@@ -35,6 +37,8 @@ export class FindItem extends Event {
     const extraData = { item, eventText };
 
     player.addChoice({ id, message, extraData, event: 'FindItem', choices: ['Yes', 'No'] });
+
+    return [player];
   }
 
   static makeChoice(player, id, response) {

@@ -26,17 +26,22 @@ export class Collector extends Achievement {
       con: (player, baseValue) => baseValue*0.01*tier,
       conDisplay: `${tier}%`,
       int: (player, baseValue) => baseValue*0.01*tier,
-      intDisplay: `${tier}%`
+      intDisplay: `${tier}%`,
+      itemFindRange: tier*50
     }];
 
     if(tier >= 5) {
       rewards.push({ type: 'title', title: 'Collector' });
     }
 
+    if(tier >= 6) {
+      rewards.push({ type: 'petattr', petattr: 'a bauble' });
+    }
+
     return [{
       tier,
       name: 'Collector',
-      desc: `Gain +${tier}% AGI/CON/DEX/INT/STR for having ${tier*25} collectibles.`,
+      desc: `Gain +${tier}% AGI/CON/DEX/INT/STR and +${tier*50} max item score for having ${tier*25} collectibles.`,
       type: AchievementTypes.EXPLORE,
       rewards
     }];

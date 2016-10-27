@@ -6,6 +6,7 @@ import { Character } from '../../core/base/character';
 import { GameState } from '../../core/game-state';
 
 import { SETTINGS } from '../../static/settings';
+import { Logger } from '../../shared/logger';
 
 import { PlayerDb } from './player.db';
 import { PlayerMovement } from './player.movement';
@@ -16,6 +17,8 @@ import { EventHandler } from '../events/eventhandler';
 
 import * as Events from '../events/events/_all';
 import * as Achievements from '../achievements/achievements/_all';
+
+import { DirtyChecker } from './player.dirtychecker';
 
 import { emitter } from './_emitter';
 
@@ -30,6 +33,8 @@ export class Player extends Character {
   }
 
   init(opts) {
+    this.$dirty = new DirtyChecker();
+
     super.init(opts);
 
     if(!this.joinDate)  this.joinDate = Date.now();
@@ -69,7 +74,11 @@ export class Player extends Character {
       .filter(ach => ach.permanentProp)
       .map(ach => ({ property: ach.permanentProp, name: ach.name }))
       .value();
-    this.$dataUpdater(this.name, 'gmdata', { maps, teleNames, permAchs });
+    const allEvents = _(Events)
+      .keys()
+      .reject(key => Events[key].WEIGHT <= 0)
+      .value();
+    this.$dataUpdater(this.name, 'gmdata', { maps, teleNames, permAchs, allEvents });
   }
 
   generateBaseEquipment() {
@@ -84,31 +93,61 @@ export class Player extends Character {
   }
 
   takeTurn() {
+
+    const activePet = this.$pets.activePet;
+
+    if(activePet) {
+      activePet.takeTurn();
+      if(activePet.$updatePlayer) {
+        this.__updatePetActive();
+      }
+    }
+
     if(this.$personalities.isActive('Camping')) {
       this.$statistics.incrementStat('Character.Movement.Camping');
+      this.save();
       return;
     }
-    this.moveAction();
-    EventHandler.tryToDoEvent(this);
 
-    if(this.party) {
+    this.attemptToDisbandSoloParty();
+
+    try {
+      this.moveAction();
+      EventHandler.tryToDoEvent(this);
+    } catch(e) {
+      Logger.error('Player', e);
+    }
+
+    if(this.$partyName) {
       this.party.playerTakeStep(this);
     }
 
     this.save();
   }
 
+  attemptToDisbandSoloParty() {
+    if(!this.$partyName) return;
+
+    const party = this.party;
+    if(party.players.length > 1) return;
+
+    party.disband(this, false);
+  }
+
   levelUp() {
-    if(this.level === SETTINGS.maxLevel) return;
-    this._level.add(1);
-    this.resetMaxXp();
-    this._xp.toMinimum();
-    this.recalculateStats();
+    if(this.level === this._level.maximum) return;
+    super.levelUp();
+    this._saveSelf();
     emitter.emit('player:levelup', { player: this });
   }
 
-  gainGold(gold = 1) {
-    gold += this.liveStats.gold;
+  gainGold(gold = 1, calc = true) {
+
+    let isPositive = false;
+    if(gold > 0) isPositive = true;
+
+    gold = calc ? this.liveStats.gold(gold) : gold;
+    if(_.isNaN(gold) || (isPositive && gold < 0)) gold = 0;
     super.gainGold(gold);
 
     if(gold > 0) {
@@ -116,10 +155,17 @@ export class Player extends Character {
     } else {
       this.$statistics.incrementStat('Character.Gold.Lose', -gold);
     }
+
+    return gold;
   }
 
-  gainXp(xp = 1) {
-    xp += this.liveStats.xp;
+  gainXp(xp = 1, calc = true) {
+
+    let isPositive = false;
+    if(xp > 0) isPositive = true;
+
+    xp = calc ? this.liveStats.xp(xp) : xp;
+    if(_.isNaN(xp) || (isPositive && xp < 0)) xp = 0;
     super.gainXp(xp);
 
     if(xp > 0) {
@@ -129,6 +175,8 @@ export class Player extends Character {
     }
 
     if(this._xp.atMaximum()) this.levelUp();
+
+    return xp;
   }
 
   addChoice(messageData) {
@@ -195,17 +243,34 @@ export class Player extends Character {
   }
 
   moveAction() {
-    let [newLoc, dir] = this.$playerMovement.pickRandomTile(this);
+    const weight = this.$playerMovement.getInitialWeight(this);
+
+    let [index, newLoc, dir] = this.$playerMovement.pickRandomTile(this, weight);
     let tile = this.$playerMovement.getTileAt(this.map, newLoc.x, newLoc.y);
 
+    let attempts = 1;
     while(!this.$playerMovement.canEnterTile(this, tile)) {
-      [newLoc, dir] = this.$playerMovement.pickRandomTile(this, true);
+      if (attempts > 8) {
+        // Logger.error('Player', `Player ${this.name} is position locked at ${this.x}, ${this.y} in ${this.map}`);
+        break;
+      }
+      weight[index] = 0;
+      [index, newLoc, dir] = this.$playerMovement.pickRandomTile(this, weight);
       tile = this.$playerMovement.getTileAt(this.map, newLoc.x, newLoc.y);
+      attempts++;
     }
 
     this.lastDir = dir === 5 ? null : dir;
     this.x = newLoc.x;
     this.y = newLoc.y;
+
+    const mapInstance = GameState.getInstance().world.maps[this.map];
+
+    if(!mapInstance || this.x <= 0 || this.y <= 0 || this.y > mapInstance.height || this.x > mapInstance.width) {
+      this.map = 'Norkos';
+      this.x = 10;
+      this.y = 10;
+    }
 
     this.oldRegion = this.mapRegion;
     this.mapRegion = tile.region;
@@ -227,7 +292,7 @@ export class Player extends Character {
       incrementStats.push('Character.Movement.Drunk');
     }
 
-    if(this.$personalities.isActive('Solo')) {
+    if(this.$personalities.isActive('Solo') && !this.party) {
       incrementStats.push('Character.Movement.Solo');
     }
 
@@ -236,15 +301,35 @@ export class Player extends Character {
     this.gainXp(SETTINGS.xpPerStep);
   }
 
+  equip(item) {
+    super.equip(item);
+    this._saveSelf();
+  }
+
+  unequip(item, replaceWith) {
+    this.equipment[item.type] = replaceWith;
+    this.recalculateStats();
+    this._saveSelf();
+  }
+
+  recalculateStats() {
+    super.recalculateStats();
+    this.$dirty.reset();
+  }
+
   buildSaveObject() {
     return _.omitBy(this, (val, key) => _.startsWith(key, '$'));
   }
 
   buildTransmitObject() {
-    const badKeys = ['equipment', 'isOnline', 'stepCooldown', 'userId', 'lastDir'];
+    const badKeys = ['equipment', 'isOnline', 'stepCooldown', 'userId', 'lastDir', 'allIps'];
     return _.omitBy(this, (val, key) => {
       return _.startsWith(key, '$') || _.includes(key, 'Link') || _.includes(key, 'Steps') || _.includes(badKeys, key);
     });
+  }
+
+  _saveSelf() {
+    this.$playerDb.savePlayer(this);
   }
 
   save() {
@@ -254,8 +339,9 @@ export class Player extends Character {
     this.saveSteps--;
 
     if(this.saveSteps <= 0) {
-      this.$playerDb.savePlayer(this);
+      this._saveSelf();
       this.$statistics.save();
+      this.$pets.save();
       this.saveSteps = SETTINGS.saveSteps;
     }
     this.update();
@@ -266,6 +352,7 @@ export class Player extends Character {
     this.achievementSteps--;
 
     if(this.achievementSteps <= 0) {
+      this.$pets.checkPets(this);
       const newAchievements = this.$achievements.checkAchievements(this);
       if(newAchievements.length > 0) {
         emitter.emit('player:achieve', { player: this, achievements: newAchievements });
@@ -306,6 +393,25 @@ export class Player extends Character {
 
   _updatePersonalities() {
     this.$dataUpdater(this.name, 'personalities', { earned: this.$personalities.earnedPersonalities, active: this.$personalities.activePersonalities });
+  }
+
+  _updatePet() {
+    this.__updatePetBuyData();
+    this.__updatePetBasic();
+    this.__updatePetActive();
+  }
+
+  __updatePetBasic() {
+    this.$dataUpdater(this.name, 'petbasic', this.$pets.earnedPets);
+  }
+
+  __updatePetBuyData() {
+    this.$dataUpdater(this.name, 'petbuy', this.$pets.petInfo);
+  }
+
+  __updatePetActive() {
+    if(!this.$pets.activePet) return;
+    this.$dataUpdater(this.name, 'petactive', this.$pets.activePet.buildTransmitObject());
   }
 
   update() {

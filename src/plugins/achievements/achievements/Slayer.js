@@ -26,14 +26,22 @@ export class Slayer extends Achievement {
       itemFindRangeMultiplier: (tier*0.1).toFixed(1)
     }];
 
+    if(tier >= 4) {
+      rewards.push({ type: 'stats', itemFindRange: 100 });
+    }
+
     if(tier >= 5) {
       rewards.push({ type: 'title', title: 'Slayer' });
+    }
+
+    if(tier >= 6) {
+      rewards.push({ type: 'petattr', petattr: 'a talking hammer that talks about nailing monsters' });
     }
 
     return [{
       tier,
       name: 'Slayer',
-      desc: `Gain +${tier*5} STR/CON/DEX/INT/AGI and +${tier*10}% better item find for killing ${baseValue * Math.pow(10, tier-1)} monsters.`,
+      desc: `Gain +${(tier*5).toLocaleString()} STR/CON/DEX/INT/AGI and +${(tier*10).toLocaleString()}% better item find for killing ${(baseValue * Math.pow(10, tier-1)).toLocaleString()} monsters.`,
       type: AchievementTypes.COMBAT,
       rewards
     }];

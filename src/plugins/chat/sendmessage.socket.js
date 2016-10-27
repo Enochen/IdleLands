@@ -53,14 +53,26 @@ export const socket = (socket, primus) => {
     text = _.truncate(text, { length: SETTINGS.chatMessageMaxLength, omission: ' [truncated]' }).trim();
     if(!text) return;
 
-    const messageObject = { text, timestamp, channel, route, title: player.title, playerName: player.nameEdit ? player.nameEdit : player.name, level: player.level, event };
+    const messageObject = {
+      text,
+      timestamp,
+      channel,
+      route,
+      title: player.title,
+      playerName: player.nameEdit ? player.nameEdit : player.name,
+      level: player.level,
+      event,
+      ip: player.$currentIp,
+      isMod: player.isMod
+    };
 
     if(_.includes(route, ':pm:')) {
       const users = route.split(':')[2].split('|');
-      primus.forEach(spark => {
-        if(!_.includes(users, spark.playerName)) return;
+      primus.forEach((spark, next) => {
+        if(!_.includes(users, spark.playerName)) return next();
         spark.write(messageObject);
-      });
+        next();
+      }, () => {});
     } else {
       primus.room(route).write(messageObject);
 

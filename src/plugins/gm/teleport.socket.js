@@ -1,6 +1,7 @@
 
 import { GameState } from '../../core/game-state';
 import { GMCommands } from './commands';
+import { Logger } from '../../shared/logger';
 
 export const event = 'plugin:gm:teleport';
 export const description = 'Mod only. Teleport a user to a location.';
@@ -13,7 +14,8 @@ export const socket = (socket) => {
     const { playerName } = socket.authToken;
 
     const player = GameState.getInstance().getPlayer(playerName);
-    if(!player.isMod) return;
+    if(!player || !player.isMod) return;
+    Logger.info('Socket:GM:Teleport', `${playerName} (${socket.address.ip}) teleporting ${targetName} to ${JSON.stringify(teleData)}.`);
 
     const target = GameState.getInstance().getPlayer(targetName);
     GMCommands.teleport(target, teleData);

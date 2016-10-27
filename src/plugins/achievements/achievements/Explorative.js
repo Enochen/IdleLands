@@ -23,14 +23,22 @@ export class Explorative extends Achievement {
       intDisplay: `${tier}%`
     }];
 
+    if(tier >= 4) {
+      rewards.push({ type: 'stats', itemFindRange: 100 });
+    }
+
     if(tier >= 5) {
       rewards.push({ type: 'title', title: 'Explorative' });
+    }
+
+    if(tier >= 6) {
+      rewards.push({ type: 'petattr', petattr: 'a map that only works when held upside down' });
     }
 
     return [{
       tier,
       name: 'Explorative',
-      desc: `Gain +${tier}% INT for exploring ${tier*5} unique maps.`,
+      desc: `Gain +${tier}% INT for exploring ${(tier*5).toLocaleString()} unique maps.`,
       type: AchievementTypes.EXPLORE,
       rewards
     }];

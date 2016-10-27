@@ -22,14 +22,22 @@ export class Bossy extends Achievement {
       con: tier*10
     }];
 
+    if(tier >= 4) {
+      rewards.push({ type: 'stats', itemFindRange: 100 });
+    }
+
     if(tier >= 5) {
       rewards.push({ type: 'title', title: 'Bossy' });
+    }
+
+    if(tier >= 6) {
+      rewards.push({ type: 'petattr', petattr: 'a goblin head on a spear' });
     }
 
     return [{
       tier,
       name: 'Bossy',
-      desc: `+${tier*10} STR/CON for killing ${baseValue*tier} bosses.`,
+      desc: `Gain +${(tier*10).toLocaleString()} STR/CON for killing ${baseValue*tier} bosses.`,
       type: AchievementTypes.COMBAT,
       rewards
     }];

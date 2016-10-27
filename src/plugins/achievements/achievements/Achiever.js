@@ -22,10 +22,14 @@ export class Achiever extends Achievement {
       rewards.push({ type: 'title', title: 'Achiever' });
     }
 
+    if(tier >= 6) {
+      rewards.push({ type: 'petattr', petattr: 'a golden plaque' });
+    }
+
     return [{
       tier,
       name: 'Achiever',
-      desc: `+${tier} achievement${tier > 1 ? 's': ''}`,
+      desc: `Gain +${tier} achievement${tier > 1 ? 's': ''}.`,
       type: AchievementTypes.EVENT,
       rewards
     }];

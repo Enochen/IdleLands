@@ -1,5 +1,6 @@
 
 import { GameState } from '../../core/game-state';
+import { Logger } from '../../shared/logger';
 
 import { emitter } from '../../plugins/players/_emitter';
 
@@ -19,8 +20,10 @@ export const socket = (socket) => {
     const target = gameState.retrievePlayer(targetName);
 
     if(!player || !player.isMod || !target) return;
+    Logger.info('Socket:Ban', `${playerName} (${socket.address.ip}) banning ${targetName}.`);
+
     target.isBanned = true;
-    target.save();
+    target._saveSelf();
 
     emitter.emit('player:logout', { playerName: targetName });
   };

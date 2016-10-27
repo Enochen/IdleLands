@@ -22,14 +22,22 @@ export class Boxer extends Achievement {
       agi: tier*10
     }];
 
+    if(tier >= 4) {
+      rewards.push({ type: 'stats', itemFindRange: 100 });
+    }
+
     if(tier >= 5) {
       rewards.push({ type: 'title', title: 'Boxer' });
+    }
+
+    if(tier >= 6) {
+      rewards.push({ type: 'petattr', petattr: 'a mini treasure chest containing an even smaller treasure chest' });
     }
 
     return [{
       tier,
       name: 'Boxer',
-      desc: `+${tier*10} DEX/AGI for opening ${baseValue*tier} chests.`,
+      desc: `+${(tier*10).toLocaleString()} DEX/AGI for opening ${baseValue*tier} chests.`,
       type: AchievementTypes.EXPLORE,
       rewards
     }];

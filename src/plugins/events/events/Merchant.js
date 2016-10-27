@@ -8,13 +8,27 @@ import { MessageCategories } from '../../../shared/adventure-log';
 
 import { SETTINGS } from '../../../static/settings';
 
+import { MerchantEnchant } from './MerchantEnchant';
+
 export const WEIGHT = 15;
 
 // Get the opportunity to buy an item
 export class Merchant extends Event {
-  static operateOn(player) {
+  static WEIGHT = WEIGHT;
 
-    const item = ItemGenerator.generateItem(null, player.calcLuckBonusFromValue(player.stats.luk + player.liveStats.merchantItemGeneratorBonus));
+  static operateOn(player, opts) {
+
+    let { merchantBonus } = opts || {};
+
+    merchantBonus = +merchantBonus;
+    if(_.isNaN(merchantBonus)) merchantBonus = Event.chance.integer({ min: -3, max: 15 });
+
+    if(Event.chance.bool({ likelihood: Math.max(0, Math.min(100, merchantBonus/10)) })) {
+      MerchantEnchant.operateOn(player);
+      return [player];
+    }
+
+    const item = ItemGenerator.generateItem(null, player.calcLuckBonusFromValue(player.stats.luk + player.liveStats.merchantItemGeneratorBonus + merchantBonus));
     if(!player.canEquip(item)) {
       const playerItem = player.equipment[item.type];
       const text = playerItem.score > item.score ? 'weak' : 'strong';
@@ -23,7 +37,7 @@ export class Merchant extends Event {
       const message = `%player was offered %item by a wandering merchant, but it was too ${text} for %himher.`;
       const parsedMessage = this._parseText(message, player, { item: item.fullname });
       this.emitMessage({ affected: [player], eventText: parsedMessage, category: MessageCategories.GOLD });
-      return;
+      return [player];
     }
 
     const sellScore = item.score * SETTINGS.merchantMultiplier;
@@ -33,7 +47,7 @@ export class Merchant extends Event {
       const message = '%player was offered %item by a wandering merchant, but %she doesn\'t have enough gold.';
       const parsedMessage = this._parseText(message, player, { item: item.fullname });
       this.emitMessage({ affected: [player], eventText: parsedMessage, category: MessageCategories.GOLD });
-      return;
+      return [player];
     }
 
     const id = Event.chance.guid();
@@ -42,6 +56,8 @@ export class Merchant extends Event {
     const extraData = { item, cost, eventText };
 
     player.addChoice({ id, message, extraData, event: 'Merchant', choices: ['Yes', 'No'] });
+
+    return [player];
   }
 
   static makeChoice(player, id, response) {
@@ -49,7 +65,7 @@ export class Merchant extends Event {
     const choice = _.find(player.choices, { id });
     if(player.gold < choice.extraData.cost) return false;
     player.equip(new Equipment(choice.extraData.item));
-    player.gainGold(-choice.extraData.cost);
+    player.gainGold(-choice.extraData.cost, false);
     player.$statistics.incrementStat('Character.Gold.Spent', choice.extraData.cost);
     this.emitMessage({ affected: [player], eventText: choice.extraData.eventText, category: MessageCategories.GOLD });
   }

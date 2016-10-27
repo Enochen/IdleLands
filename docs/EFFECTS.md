@@ -20,14 +20,19 @@ silver | +10% minimum attack damage.
 power | +10% maximum attack damage.
 vorpal | +10% critical chance.
 glowing | +5% to all physical combat rolls. Stacks intensity.
+sentimentality | +1 score. Stacks intensity.
+hp | +1 hp. Stacks intensity.
+mp | +1 mp. Stacks intensity.
+xp | Gain +1 xp every time xp is gained.
+gold | Gain +1 gold every time gold is gained.
 
 
 ## Attack Stats
 
 Name | Description
 ---- | -----------
-prone | +10% chance of stunning an opponent for 1 round.
-venom | +10% chance of inflicting venom (DoT, % of target HP) on an enemy. Stacks intensity.
-poison | +10% chance of inflicting poison (DoT, based on caster INT) on an enemy. Stacks intensity.
-shatter | +10% chance of inflicting shatter (-30% CON/DEX/AGI) on an enemy.
-vampire | +10% chance of inflicting vampire (health drain) on an enemy. Stacks intensity.
+prone | +5% chance of stunning an opponent for 1 round.
+venom | +5% chance of inflicting venom (DoT, % of target HP) on an enemy. Stacks intensity.
+poison | +5% chance of inflicting poison (DoT, based on caster INT) on an enemy. Stacks intensity.
+shatter | +5% chance of inflicting shatter (-10% CON/DEX/AGI) on an enemy. Stacks intensity.
+vampire | +5% chance of inflicting vampire (health drain) on an enemy. Stacks intensity.

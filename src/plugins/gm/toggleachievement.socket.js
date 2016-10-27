@@ -1,6 +1,7 @@
 
 import { GameState } from '../../core/game-state';
 import { GMCommands } from './commands';
+import { Logger } from '../../shared/logger';
 
 export const event = 'plugin:gm:toggleachievement';
 export const description = 'Mod only. Toggle a permanent achievement for the target.';
@@ -13,7 +14,8 @@ export const socket = (socket) => {
     const { playerName } = socket.authToken;
 
     const player = GameState.getInstance().getPlayer(playerName);
-    if(!player.isMod) return;
+    if(!player || !player.isMod) return;
+    Logger.info('Socket:GM:TogglePermanentAchievement', `${playerName} (${socket.address.ip}) giving achievement ${achievement} to ${targetName}.`);
 
     const target = GameState.getInstance().getPlayer(targetName);
     GMCommands.toggleAchievement(target, achievement);

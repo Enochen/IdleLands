@@ -20,12 +20,12 @@ export class FoodFight extends Spell {
   }
 
   determineTargets() {
-    return this.$targetting.all;
+    return this.$targetting.allAlive;
   }
 
   calcDamage() {
-    const min = this.caster.liveStats.dex / 4;
-    const max = this.caster.liveStats.dex / 2;
+    const min = this.caster.liveStats.dex / 8;
+    const max = this.caster.liveStats.dex / 4;
     return this.minMax(min, max) * this.spellPower;
   }
 

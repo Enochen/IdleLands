@@ -73,6 +73,7 @@ export class ItemGenerator extends Generator {
 
     this.addPropertiesToItem(itemInst, bonus);
 
+    itemInst._baseScore = itemInst.score;
     itemInst.type = type;
     itemInst.itemClass = this.getItemClass(itemInst);
     itemInst.score;
@@ -91,6 +92,10 @@ export class ItemGenerator extends Generator {
         iter++;
         i = seti();
       }
+    }
+
+    if(chance.integer({ min: 0, max: 100 }) === 0) {
+      this.mergePropInto(item, _.sample(ObjectAssets['prefix-special']));
     }
 
     if(chance.integer({ min: 0, max: 85 }) <= 1+bonus) {

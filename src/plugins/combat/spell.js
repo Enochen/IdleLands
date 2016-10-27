@@ -22,16 +22,22 @@ export class Spell {
   static oper = 'sub';
 
   static bestTier(caster) {
+
+    const collectibleCheck = caster.$ownerRef ? caster.$ownerRef : caster;
+
     return _.last(_.filter(this.tiers, tier => {
-      const meetsCollectibleReqs = tier.collectibles ? _.every(tier.collectibles, c => !caster.$collectibles || caster.$collectibles.hasCollectible(c)) : true;
+      const meetsCollectibleReqs = tier.collectibles ? _.every(tier.collectibles, c => !collectibleCheck.$collectibles || collectibleCheck.$collectibles.hasCollectible(c)) : true;
       return isValidSpellTierProfession(tier, caster) && tier.level <= caster.level && meetsCollectibleReqs;
     }));
   }
 
   get tier() {
     const tiers = this.constructor.tiers;
+
+    const collectibleCheck = this.caster.$ownerRef ? this.caster.$ownerRef : this.caster;
+
     return _.last(_.filter(tiers, tier => {
-      const meetsCollectibleReqs = tier.collectibles ? _.every(tier.collectibles, c => !this.caster.$collectibles || this.caster.$collectibles.hasCollectible(c)) : true;
+      const meetsCollectibleReqs = tier.collectibles ? _.every(tier.collectibles, c => !collectibleCheck.$collectibles || collectibleCheck.$collectibles.hasCollectible(c)) : true;
       return isValidSpellTierProfession(tier, this.caster) && tier.level <= this.caster.level && meetsCollectibleReqs;
     }));
   }
@@ -90,7 +96,6 @@ export class Spell {
     this.caster.$battle.tryIncrement(this.caster, `Combat.Utilize.${this.element}`);
 
     damage = Math.round(damage);
-    this.caster.$battle.tryIncrement(this.caster, 'Combat.Give.Damage', damage);
     this.caster[`_${this.stat}`][this.oper](this.cost);
 
     messageData.spellName = this.tier.name;
@@ -101,23 +106,14 @@ export class Spell {
     }
 
     _.each(targets, target => {
-      this.caster.$battle.tryIncrement(target, 'Combat.Receive.Damage', damage);
-
       messageData.targetName = target.fullname;
 
       this.caster.$battle.emitEvents(this.caster, 'Attack');
       this.caster.$battle.emitEvents(target, 'Attacked');
 
+      const wasAlive = target.hp > 0;
       if(damage !== 0) {
         damage = this.dealDamage(target, damage);
-
-        if(target.hp === 0) {
-          this.caster.$battle.tryIncrement(this.caster, `Combat.Kills.${target.isPlayer ? 'Player' : 'Monster'}`);
-          this.caster.$battle.tryIncrement(target, `Combat.Deaths.${this.caster.isPlayer ? 'Player' : 'Monster'}`);
-
-          this.caster.$battle.emitEvents(this.caster, 'Kill');
-          this.caster.$battle.emitEvents(target, 'Killed');
-        }
       }
 
       messageData.damage = damage;
@@ -128,7 +124,12 @@ export class Spell {
         this.caster.$battle._emitMessage(this._emitMessage(this.caster, message, messageData));
       }
 
-      if(applyEffect) {
+      // Target was killed by this attack. Prevents double counting of kills.
+      if(wasAlive && target.hp === 0) {
+        this.caster.$battle.handleDeath(target, this.caster);
+      }
+
+      if(applyEffect && target.hp > 0) {
         const effect = new applyEffect({ target, extra: applyEffectExtra, potency: applyEffectPotency || this.calcPotency(), duration: applyEffectDuration || this.calcDuration() });
         effect.origin = { name: this.caster.fullname, ref: this.caster, spell: applyEffectName || this.tier.name };
         target.$effects.add(effect);
@@ -142,7 +143,7 @@ export class Spell {
   preCast() {}
 
   dealDamage(target, damage) {
-    return this.caster.$battle.dealDamage(target, damage);
+    return this.caster.$battle.dealDamage(target, damage, this.caster);
   }
 
   minMax(min, max) {
@@ -154,11 +155,15 @@ export class Spell {
       const properEffect = _.capitalize(stat);
       const effect = require(`./effects/${properEffect}`)[properEffect];
 
+      let potencyBonus = this.caster.liveStats[stat];
+      if(potencyBonus < 0) potencyBonus = 0;
+
       this.cast({
         damage: 0,
         message: '',
         applyEffect: effect,
         applyEffectName: stat,
+        applyEffectPotency: 1 + potencyBonus,
         applyEffectDuration: stat === 'prone' ? 1 : this.calcDuration(),
         targets: [target]
       });

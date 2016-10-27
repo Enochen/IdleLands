@@ -6,6 +6,8 @@ import * as AllAchievements from './achievements/_all';
 
 import { Logger } from '../../shared/logger';
 
+import { SETTINGS } from '../../static/settings';
+
 @Dependencies(Container)
 export class Achievements {
   constructor(container) {
@@ -24,6 +26,16 @@ export class Achievements {
     this._id = undefined;
     this.achievements = undefined;
     _.extend(this, opts);
+  }
+
+  petAttributes() {
+    return _(this.achievements)
+      .values()
+      .map(achi => achi.rewards)
+      .flattenDeep()
+      .filter(reward => reward.type === 'petattr')
+      .map(reward => reward.petattr)
+      .value().concat(SETTINGS.validPetAttributes);
   }
 
   titles() {
@@ -60,6 +72,10 @@ export class Achievements {
     return this.achievements[achievement];
   }
 
+  hasAchievementAtTier(achievement, tier) {
+    return this.hasAchievement(achievement) && this.achievements[achievement].tier >= tier;
+  }
+
   checkAchievements(player) {
     const earned = this._allAchievements(player);
     const mine = this.achievements;
@@ -75,6 +91,10 @@ export class Achievements {
     _.each(earned, ach => this.addAchievement(ach));
 
     this.save();
+
+    if(newAchievements.length > 0) {
+      player.recalculateStats();
+    }
 
     return newAchievements;
   }

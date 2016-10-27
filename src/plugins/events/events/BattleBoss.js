@@ -20,6 +20,8 @@ export const WEIGHT = -1;
 
 // Create a battle
 export class BattleBoss extends Event {
+  static WEIGHT = WEIGHT;
+
   static operateOn(player, { bossName, bosses }) {
     if(player.level <= SETTINGS.minBattleLevel) return;
     if(player.$personalities.isActive('Coward') && Event.chance.bool({ likelihood: 75 })) return;
@@ -30,6 +32,7 @@ export class BattleBoss extends Event {
     }
 
     const monsterPartyInstance = new PartyClass({ leader: bosses[0] });
+    monsterPartyInstance.isMonsterParty = true;
     if(bosses.length > 1) {
       for(let i = 1; i < bosses.length; i++) {
         monsterPartyInstance.playerJoin(bosses[i]);
@@ -51,7 +54,11 @@ export class BattleBoss extends Event {
 
     if(!battle.isLoser(player.party) && !battle._isTie) {
       _.each(player.party.players, p => {
-        p.$statistics.incrementStat(`Character.BossKills.${bossName}`);
+        if(!p.$statistics) return;
+    
+        _.each(bosses, boss => {
+          p.$statistics.incrementStat(`Character.BossKills.${boss._name}`);
+        });
       });
 
       MonsterGenerator._setBossTimer(bossName);
@@ -75,7 +82,8 @@ export class BattleBoss extends Event {
       if(dropItems.length > 0) {
         _.each(dropItems, item => {
           _.each(player.party.players, p => {
-            FindItem.operateOn(p, item);
+            if(!p.canEquip(item)) return;
+            FindItem.operateOn(p, null, item);
           });
         });
       }
@@ -94,6 +102,7 @@ export class BattleBoss extends Event {
           };
 
           _.each(player.party.players, p => {
+            if(p.$collectibles.hasCollectible(collectibleObj.name)) return;
             p.$collectibles.addCollectible(collectibleObj);
             emitter.emit('player:collectible', { player: p, collectible: collectibleObj });
           });
@@ -101,9 +110,15 @@ export class BattleBoss extends Event {
       }
     }
 
+    const affected = player.party.players;
+
     if(player.party.isBattleParty) {
       player.party.disband();
     }
+
+    monsterPartyInstance.disband();
+
+    return affected;
   }
 }
 

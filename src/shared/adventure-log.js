@@ -1,6 +1,4 @@
 
-import _ from 'lodash';
-
 import { Logger } from './logger';
 import { primus } from '../primus/server';
 
@@ -46,10 +44,5 @@ export const AdventureLog = (message) => {
   }
 
   message.event = 'adventurelog';
-  _.each(message.targets, target => {
-    primus.forEach(spark => {
-      if(!spark.authToken || spark.authToken.playerName !== target) return;
-      spark.write(message);
-    });
-  });
+  primus.emitToPlayers(message.targets, message);
 };

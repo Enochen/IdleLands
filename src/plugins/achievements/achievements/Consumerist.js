@@ -27,10 +27,14 @@ export class Consumerist extends Achievement {
       rewards.push({ type: 'title', title: 'Consumerist' });
     }
 
+    if(tier >= 4) {
+      rewards.push({ type: 'petattr', petattr: 'a bronze coin that looks like it got chewed on' });
+    }
+
     return [{
       tier,
       name: 'Consumerist',
-      desc: `Sell items for ${tier*5}% more for spending ${baseValue * Math.pow(10, tier-1)} gold, and gain +${tier}% DEX.`,
+      desc: `Sell items for ${(tier*5).toLocaleString()}% more for spending ${(baseValue * Math.pow(10, tier-1)).toLocaleString()} gold, and gain +${tier}% DEX.`,
       type: AchievementTypes.EVENT,
       rewards
     }];

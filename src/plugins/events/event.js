@@ -34,17 +34,17 @@ export class Event {
   }
 
   static pickValidItem(player) {
-    const validTargets = _.reject(player.equipment, item => item.type === 'providence');
+    const validTargets = _.reject(player.equipment, item => item.isNothing || item.type === 'providence');
     return _.sample(validTargets);
   }
 
   static pickValidItemForEnchant(player) {
-    const validTargets = _.filter(player.equipment, item => item.type !== 'providence' && item.isNormallyEnchantable);
+    const validTargets = _.filter(player.equipment, item => !item.isNothing && item.type !== 'providence' && item.isNormallyEnchantable);
     return _.sample(validTargets);
   }
 
   static pickValidItemForBless(player) {
-    const validTargets = _.filter(player.equipment, item => item.type !== 'providence' && item.isUnderNormalPercent);
+    const validTargets = _.filter(player.equipment, item => !item.isNothing && item.type !== 'providence' && item.isUnderNormalPercent);
     return _.sample(validTargets);
   }
 
@@ -57,9 +57,10 @@ export class Event {
   }
 
   static feedback(player, message) {
-    primus.forEach(spark => {
-      if(!spark.authToken || spark.authToken.playerName !== player.name) return;
+    primus.forEach((spark, next) => {
+      if(!spark.authToken || spark.authToken.playerName !== player.name) return next();
       spark.write({ type: 'error', title: '', notify: message });
-    });
+      next();
+    }, () => {});
   }
 }

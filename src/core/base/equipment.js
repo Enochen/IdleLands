@@ -19,7 +19,7 @@ export class Equipment {
     str: 1.5,
     dex: 1,
     agi: 1,
-    con: 3.5,
+    con: 2.5,
     int: 2,
     luk: 5,
     enchantLevel: -125,
@@ -29,12 +29,13 @@ export class Equipment {
     hpregen: 4,
     mpregen: 2,
     crit: 100,
-    prone: 100,
-    venom: 200,
-    poison: 200,
+    prone: 400,
+    venom: 500,
+    poison: 350,
     shatter: 300,
-    vampire: 300,
-    damageReduction: 25,
+    vampire: 700,
+    damageReduction: 2,
+    gold: 0.5,
     sentimentality: 1,
     dance: 100,
     defense: 100,
@@ -61,6 +62,10 @@ export class Equipment {
 
   get isUnderNormalPercent() {
     return (this._calcScore/this._baseScore) < 3;
+  }
+
+  get isNothing() {
+    return this.name === 'nothing';
   }
 
   get score() {

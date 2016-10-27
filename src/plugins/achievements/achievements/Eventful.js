@@ -25,10 +25,14 @@ export class Eventful extends Achievement {
       rewards.push({ type: 'title', title: 'Center of Attention' });
     }
 
+    if(tier >= 6) {
+      rewards.push({ type: 'petattr', petattr: 'a megaphone' });
+    }
+
     return [{
       tier,
       name: 'Eventful',
-      desc: `Equip items that are ${10*tier}% better for experiencing ${baseValue * Math.pow(10, tier)} events.`,
+      desc: `Equip items that are ${(10*tier).toLocaleString()}% better for experiencing ${(baseValue * Math.pow(10, tier)).toLocaleString()} events.`,
       type: AchievementTypes.EVENT,
       rewards
     }];

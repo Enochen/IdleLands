@@ -27,10 +27,14 @@ export class Unstoppable extends Achievement {
       rewards.push({ type: 'title', title: 'Unstoppable' });
     }
 
+    if(tier >= 5) {
+      rewards.push({ type: 'petattr', petattr: 'an unstoppable force' });
+    }
+
     return [{
       tier,
       name: 'Unstoppable',
-      desc: `Gain +${tier}% HP and +${20*tier} STR for dealing ${baseValue * Math.pow(10, tier-1)} damage.`,
+      desc: `Gain +${tier}% HP and +${(20*tier).toLocaleString()} STR for dealing ${(baseValue * Math.pow(10, tier-1)).toLocaleString()} damage.`,
       type: AchievementTypes.COMBAT,
       rewards
     }];

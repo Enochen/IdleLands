@@ -24,10 +24,14 @@ export class Walker extends Achievement {
       rewards.push({ type: 'title', title: 'Tired Foot' });
     }
 
+    if(tier >= 7) {
+      rewards.push({ type: 'petattr', petattr: 'a pair of sneakers that are a size too small' });
+    }
+
     return [{
       tier,
       name: 'Walker',
-      desc: `Gain +${tier} Bonus XP (added every time XP is gained) for taking ${Math.pow(10, tier)} steps.`,
+      desc: `Gain +${tier} Bonus XP (added every time XP is gained) for taking ${(Math.pow(10, tier)).toLocaleString()} steps.`,
       type: AchievementTypes.EXPLORE,
       rewards
     }];

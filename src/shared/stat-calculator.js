@@ -16,20 +16,27 @@ export const SPECIAL_STATS_BASE = [
   { name: 'silver',          desc: '+10% minimum attack damage.', enchantMax: 1 },
   { name: 'power',           desc: '+10% maximum attack damage.', enchantMax: 1 },
   { name: 'vorpal',          desc: '+10% critical chance.', enchantMax: 1 },
-  { name: 'glowing',         desc: '+5% to all physical combat rolls. Stacks intensity.', enchantMax: 1 }
+  { name: 'glowing',         desc: '+5% to all physical combat rolls. Stacks intensity.', enchantMax: 1 },
+  { name: 'sentimentality',  desc: '+1 score. Stacks intensity.', enchantMax: 500 },
+  { name: 'hp',              desc: '+1 hp. Stacks intensity.', enchantMax: 2000 },
+  { name: 'mp',              desc: '+1 mp. Stacks intensity.', enchantMax: 2000 },
+  { name: 'xp',              desc: 'Gain +1 xp every time xp is gained.', enchantMax: 1 },
+  { name: 'gold',            desc: 'Gain +1 gold every time gold is gained.', enchantMax: 500 }
 ];
 
 export const ATTACK_STATS_BASE = [
-  { name: 'prone',           desc: '+10% chance of stunning an opponent for 1 round.', enchantMax: 1 },
-  { name: 'venom',           desc: '+10% chance of inflicting venom (DoT, % of target HP) on an enemy. Stacks intensity.', enchantMax: 1 },
-  { name: 'poison',          desc: '+10% chance of inflicting poison (DoT, based on caster INT) on an enemy. Stacks intensity.', enchantMax: 1 },
-  { name: 'shatter',         desc: '+10% chance of inflicting shatter (-30% CON/DEX/AGI) on an enemy.', enchantMax: 1 },
-  { name: 'vampire',         desc: '+10% chance of inflicting vampire (health drain) on an enemy. Stacks intensity.', enchantMax: 1 }
+  { name: 'prone',           desc: '+5% chance of stunning an opponent for 1 round.', enchantMax: 1 },
+  { name: 'venom',           desc: '+5% chance of inflicting venom (DoT, % of target HP) on an enemy. Stacks intensity.', enchantMax: 1 },
+  { name: 'poison',          desc: '+5% chance of inflicting poison (DoT, based on caster INT) on an enemy. Stacks intensity.', enchantMax: 1 },
+  { name: 'shatter',         desc: '+5% chance of inflicting shatter (-10% CON/DEX/AGI) on an enemy. Stacks intensity.', enchantMax: 1 },
+  { name: 'vampire',         desc: '+5% chance of inflicting vampire (health drain) on an enemy. Stacks intensity.', enchantMax: 1 }
 ];
 
 export const BASE_STATS = ['str', 'con', 'dex', 'int', 'agi', 'luk'];
 export const SPECIAL_STATS = _.map(SPECIAL_STATS_BASE, 'name');
 export const ATTACK_STATS = _.map(ATTACK_STATS_BASE, 'name');
+
+export const ALL_STATS = BASE_STATS.concat(SPECIAL_STATS).concat(ATTACK_STATS);
 
 export class StatCalculator {
 
@@ -61,6 +68,7 @@ export class StatCalculator {
   static equipmentStat(player, stat) {
     return _(player.equipment)
       .values()
+      .flatten()
       .map(item => _.isNumber(item[stat]) ? item[stat] : 0)
       .sum();
   }
@@ -114,26 +122,40 @@ export class StatCalculator {
     if(!player.$personalities) return 0;
     return _(player.$personalities._activePersonalityData())
       .reject(pers => !pers.stats[stat] || _.isFunction(pers.stats[stat]))
-      .map(pers => pers.stats[stat])
+      .map(pers => pers.stats[stat] || 0)
       .sum();
   }
 
-  static stat(player, stat) {
+  static stat(player, stat, baseValueMod = 0, doRound = true) {
+    if(player.$dirty && !player.$dirty.flags[stat] && player.stats[stat]) {
+      return player.stats[stat];
+    }
+
+    if(player.$dirty) {
+      player.$dirty.flags[stat] = false;
+    }
+
     let mods = 0;
-    const baseValue = this._baseStat(player, stat);
+    const baseValue = baseValueMod + this._baseStat(player, stat);
 
     const functions = this._secondPassFunctions(player, stat);
-    _.each(functions, func => mods += func(player, baseValue));
+    _.each(functions, func => {
+      mods += func(player, baseValue);
+    });
 
-    return Math.floor(baseValue + mods);
+    return doRound ? Math.floor(baseValue + mods) : baseValue + mods;
   }
 
   static gold(player) {
-    return this._baseStat(player, 'gold');
+    return (baseVal) => {
+      return this.stat(player, 'gold', baseVal, true);
+    };
   }
 
   static xp(player) {
-    return this._baseStat(player, 'xp');
+    return (baseVal) => {
+      return this.stat(player, 'xp', baseVal, true);
+    };
   }
 
   static hp(player) {
@@ -216,20 +238,21 @@ export class StatCalculator {
 
   static itemValueMultiplier(player) {
     const baseValue = SETTINGS.reductionDefaults.itemValueMultiplier;
-    const reducedValue = this._reduction('itemValueMultiplier', [player], baseValue);
+    const reducedValue = this.stat(player, 'itemValueMultiplier', baseValue, false);
     return reducedValue;
 
   }
 
   static itemFindRange(player) {
     const baseValue = (player.level+1) * SETTINGS.reductionDefaults.itemFindRange;
-    const reducedValue = this._reduction('itemFindRange', [player], baseValue);
-    return reducedValue * this.itemFindRangeMultiplier(player);
+    const reducedValue = this.stat(player, 'itemFindRange', baseValue, false);
+
+    return Math.floor(reducedValue * this.itemFindRangeMultiplier(player));
   }
 
   static itemFindRangeMultiplier(player) {
     const baseValue = 1 + (0.2 * Math.floor(player.level/10)) + SETTINGS.reductionDefaults.itemFindRangeMultiplier;
-    return this._reduction('itemFindRangeMultiplier', [player], baseValue);
+    return this.stat(player, 'itemFindRangeMultiplier', baseValue, false);
   }
 
   static merchantItemGeneratorBonus(player) {

@@ -27,10 +27,14 @@ export class Territorial extends Achievement {
       rewards.push({ type: 'title', title: 'Territorial' });
     }
 
+    if(tier >= 11) {
+      rewards.push({ type: 'petattr', petattr: 'a dog to help guard your territory' });
+    }
+
     return [{
       tier,
       name: 'Territorial',
-      desc: `Gain +${tier}% STR for every ${tier*10} unique regions explored.`,
+      desc: `Gain +${tier}% STR for every ${(tier*10).toLocaleString()} unique regions explored.`,
       type: AchievementTypes.EXPLORE,
       rewards
     }];

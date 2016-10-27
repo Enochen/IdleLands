@@ -7,6 +7,8 @@ export const WEIGHT = -1;
 
 // Gain 1-3% XP
 export class XPBlessParty extends Event {
+  static WEIGHT = WEIGHT;
+
   static operateOn(player) {
     const percent = Event.chance.floating({ fixed: 5, min: 0.01, max: 0.03 });
     const xpMod = Math.floor(player._xp.maximum * percent);
@@ -15,7 +17,9 @@ export class XPBlessParty extends Event {
     this.emitMessage({ affected: player.party.players, eventText: `${eventText} [+${xpMod} xp, ~${(percent*100).toFixed(2)}%]`, category: MessageCategories.XP });
 
     _.each(player.party.players, member => {
-      member.gainXp(xpMod);
+      member.gainXp(xpMod, false);
+      if(!member.$statistics) return;
+      member.$statistics.batchIncrement(['Character.Events', 'Character.Event.XPBlessParty']);
     });
   }
 }

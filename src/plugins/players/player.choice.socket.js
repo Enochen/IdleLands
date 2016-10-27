@@ -1,5 +1,6 @@
 
 import { GameState } from '../../core/game-state';
+import { Logger } from '../../shared/logger';
 
 export const event = 'plugin:player:makechoice';
 export const description = 'Make a choice from the choice log.';
@@ -13,6 +14,9 @@ export const socket = (socket) => {
     if(!playerName) return;
 
     const player = GameState.getInstance().getPlayer(playerName);
+    if (!player) return;
+    Logger.info('Socket:Player:Choice', `${playerName} (${socket.address.ip}) choosing ${response} for ${id}.`);
+
     player.handleChoice({ id, response });
   };
 

@@ -5,7 +5,7 @@ import { Logger } from '../shared/logger';
 import { GameState } from './game-state';
 import { SETTINGS } from '../static/settings';
 
-import { AllPlayersPostMove } from '../shared/playerlist-updater';
+import { SomePlayersPostMove } from '../shared/playerlist-updater';
 
 Logger.info('Core', 'Starting emitters.');
 import './emitter-watchers';
@@ -21,28 +21,43 @@ GameState.getInstance();
 
 Logger.info('Core', 'Starting event loop.');
 
-const timerDelay = SETTINGS.timeframeSeconds * (process.env.NODE_ENV === 'production' ? 1000 : 5);
+const timerDelay = SETTINGS.timeframeSeconds * (process.env.NODE_ENV === 'production' ? 200 : 1);
 
-setInterval(() => {
+const flagNextTurn = (player) => {
+  player.$nextTurn = Date.now() + ((process.env.NODE_ENV === 'production' ? 1000 : 10) * SETTINGS.timeframeSeconds);
+};
+
+const canTakeTurn = (now, player) => {
+  return player.$nextTurn - now <= 0;
+};
+
+const playerInterval = () => {
   const gameState = GameState.getInstance();
   const players = gameState.getPlayers();
 
-  
-  const promises = _.map(players, (player) => {
-    const playerName = player.name;
+  const now = Date.now();
 
-    return new Promise(resolve => {
-      // setTimeout(() => {
+  const ranPlayerNames = {};
 
-      if(!_.find(gameState.getPlayers(), { name: playerName })) return resolve(false);
-      player.takeTurn();
-      resolve(true);
+  const playerTakeTurn = (player) => {
+    if(!player.$nextTurn) flagNextTurn(player);
+    if(!canTakeTurn(now, player)) return;
 
-      // }, index * (timerDelay / players.length));
-    });
+    ranPlayerNames[player.name] = true;
+    flagNextTurn(player);
 
-  });
+    player.takeTurn();
+    // PlayerUpdateAll(player.name, ['x', 'y', 'map']);
+  };
 
-  Promise.all(promises).then(AllPlayersPostMove);
+  _.each(players, playerTakeTurn);
 
-}, timerDelay);
+  SomePlayersPostMove(ranPlayerNames);
+};
+
+setInterval(playerInterval, timerDelay);
+
+if(global.gc) {
+  Logger.info('Core', 'Running GC every 30 seconds.');
+  setInterval(global.gc, 30000);
+}

@@ -21,13 +21,38 @@ export class Party {
 
     this.playerJoin(leader);
   }
+  
+  get humanPlayers() {
+    return _.filter(this.players, player => player.isPlayer);
+  }
 
   get score() {
-    return _.sum(_.map(this.players, 'itemScore')) / this.players.length;
+    let score = 0;
+    if (!this.leader) {
+      // Bonecraft edge case ends party with no players
+      return 0;
+    } else if (this.leader.isPlayer) {
+      score = _.sum(_.map(this.humanPlayers, 'itemScore')) / this.humanPlayers.length;
+    } else {
+      score = _.sum(_.map(this.players, 'itemScore')) / this.players.length;
+    }
+    
+    return score;
   }
 
   get level() {
-    return _.sum(_.map(this.players, 'level')) / this.players.length;
+    let level = 0;
+    
+    if (!this.leader) {
+      // Bonecraft edge case ends party with no players
+      return 0;
+    } else if (this.leader.isPlayer) {
+      level = _.sum(_.map(this.humanPlayers, 'level')) / this.humanPlayers.length;
+    } else {
+      level = _.sum(_.map(this.players, 'level')) / this.players.length;
+    }
+    
+    return level;
   }
 
   get displayName() {
@@ -130,8 +155,16 @@ export class Party {
     };
   }
 
-  disband(player) {
-    if(!this.isBattleParty && !this.isMonsterParty) {
+  prepareForCombat() {
+    _.each(this.players, p => {
+      const pet = p.$pets ? p.$pets.activePet : null;
+      if(!pet || !chance.bool({ likelihood: pet.$_scale.battleJoinPercent })) return;
+      this.playerJoin(pet);
+    });
+  }
+
+  disband(player, showMessage = true) {
+    if(!this.isBattleParty && !this.isMonsterParty && showMessage) {
       emitter.emit('player:event', {
         affected: this.players,
         eventText: MessageParser.stringFormat('%player has disbanded %partyName.', player || this.leader, { partyName: this.name }),

@@ -26,10 +26,14 @@ export class Effective extends Achievement {
       rewards.push({ type: 'title', title: 'Effective' });
     }
 
+    if(tier >= 6) {
+      rewards.push({ type: 'petattr', petattr: 'a warped painting of the Mona Liza' });
+    }
+
     return [{
       tier,
       name: 'Effective',
-      desc: `+${tier}% MP for ${tier*200} combat effect usages.`,
+      desc: `Gain +${tier}% MP for ${(tier*200).toLocaleString()} combat effect usages.`,
       type: AchievementTypes.COMBAT,
       rewards
     }];

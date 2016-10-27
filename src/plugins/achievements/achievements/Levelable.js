@@ -16,14 +16,22 @@ export class Levelable extends Achievement {
       rewards.push({ type: 'title', title: 'Centennial' });
     }
 
+    if(tier >= 15) {
+      rewards.push({ type: 'petattr', petattr: 'an old person' });
+    }
+
     if(tier >= 20) {
       rewards.push({ type: 'title', title: 'Bicentennial' });
+    }
+
+    if(tier >= 25) {
+      rewards.push({ type: 'petattr', petattr: 'a really old person' });
     }
 
     return [{
       tier,
       name: 'Levelable',
-      desc: `Gain +${tier} LUK and +${tier} Bonus XP (added every time XP is gained) for being level ${tier*10}.`,
+      desc: `Gain +${tier} LUK and +${tier} Bonus XP (added every time XP is gained) for being level ${(tier*10).toLocaleString()}.`,
       type: AchievementTypes.PROGRESS,
       rewards
     }];

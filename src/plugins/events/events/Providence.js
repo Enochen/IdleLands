@@ -12,6 +12,7 @@ export const WEIGHT = -1;
 
 // Get the gift of the divine
 export class Providence extends Event {
+  static WEIGHT = WEIGHT;
 
   static generateProvidenceItem(multiplier = 1, t0shift = 0, t1shift = 0, t2shift = 0) {
     const baseItem = {
@@ -48,8 +49,8 @@ export class Providence extends Event {
   }
 
   static probabilities = {
-    xp: 60,
-    level: 15,
+    xp: 10,
+    level: 5,
     gender: 80,
     gold: 50,
     profession: 10,
@@ -69,11 +70,21 @@ export class Providence extends Event {
 
     const { xp, level, gender, profession, gold } = provData;
 
-    if(xp && player.level < 100 && Event.chance.bool({ likelihood: this.probabilities.xp })) {
+    if(xp && Event.chance.bool({ likelihood: this.probabilities.xp })) {
+      const curPlayerXp = player.xp;
+      const lostXp = curPlayerXp - xp;
+
       player._xp.add(xp);
       message = `${message} ${xp > 0 ? 'Gained' : 'Lost'} ${Math.abs(xp)} xp!`;
 
-    } else if(level && player.level < 100 && Event.chance.bool({ likelihood: this.probabilities.level })) {
+      if(xp < 0 && player._xp.atMinimum()) {
+        message = `${message} Lost 1 level!`;
+        player._level.sub(1);
+        player.resetMaxXp();
+        player._xp.set(player._xp.maximum + lostXp);
+      }
+
+    } else if(level && Event.chance.bool({ likelihood: this.probabilities.level })) {
       player._level.add(level);
       player.resetMaxXp();
       message = `${message} ${level > 0 ? 'Gained' : 'Lost'} ${Math.abs(level)} levels!`;
@@ -112,8 +123,8 @@ export class Providence extends Event {
 
   static fatePoolProvidence(player, baseMessage) {
     const providenceData = {
-      xp: Event.chance.integer({ min: -player._xp.maximum, max: player._xp.maximum }),
-      level: Event.chance.integer({ min: -3, max: 2 }),
+      xp: Event.chance.integer({ min: -player._xp.maximum, max: player.level < 100 ? player._xp.maximum: 0 }),
+      level: Event.chance.integer({ min: -3, max: player.level < 100 ? 2 : 0 }),
       gender: _.sample(this._genders),
       profession: _.sample(this._professions(player)) || 'Generalist',
       gold: Event.chance.integer({ min: -Math.min(30000, player.gold), max: 20000 })

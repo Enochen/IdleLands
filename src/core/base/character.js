@@ -11,7 +11,8 @@ import { Equipment } from '../base/equipment';
 import { SpellManager } from '../../plugins/combat/spellmanager';
 import { EffectManager } from '../../plugins/combat/effectmanager';
 
-import { StatCalculator, BASE_STATS, SPECIAL_STATS, ATTACK_STATS } from '../../shared/stat-calculator';
+import { StatCalculator, ALL_STATS } from '../../shared/stat-calculator';
+import { Generator } from './generator.js';
 
 export class Character {
 
@@ -35,7 +36,7 @@ export class Character {
       this[stat].__proto__ = RestrictedNumber.prototype;
     });
 
-    _.each(_.values(this.equipment), item => item.__proto__ = Equipment.prototype);
+    _.each(_.flatten(_.values(this.equipment)), item => item.__proto__ = Equipment.prototype);
 
     if(!this.gender)          this.gender = _.sample(['male', 'female']);
     if(!this.professionName)  this.professionName = 'Generalist';
@@ -46,7 +47,7 @@ export class Character {
 
     this.$stats = new Proxy({}, {
       get: (target, name) => {
-        if(_.includes(BASE_STATS.concat(SPECIAL_STATS).concat(ATTACK_STATS), name)) {
+        if(_.includes(Generator.stats, name) && !_.includes(['gold', 'xp'], name)) {
           return StatCalculator.stat(this, name);
         }
 
@@ -77,7 +78,7 @@ export class Character {
   }
 
   get itemScore() {
-    return _.reduce(_.values(this.equipment), (prev, cur) => {
+    return _.reduce(_.flatten(_.values(this.equipment)), (prev, cur) => {
       return prev + cur.score;
     }, 0);
   }
@@ -88,16 +89,18 @@ export class Character {
 
   get isPlayer() { return this.joinDate; }
 
-  recalculateStats() {
+  recalculateStats(otherStats = ALL_STATS.concat(['itemFindRange', 'itemFindRangeMultiplier'])) {
+    _.each(otherStats, stat => {
+      const val = this.liveStats[stat];
+      if(_.includes(['xp', 'gold'], stat)) return;
+      this.statCache[stat] = val;
+    });
+
     const hpVal = StatCalculator.hp(this);
     this._hp.maximum = this._hp.__current = hpVal + (this.hpBoost || 0);
 
     const mpVal = StatCalculator.mp(this);
     this._mp.maximum = this._mp.__current = mpVal + (this.mpBoost || 0);
-
-    _.each(['str', 'dex', 'con', 'int', 'agi', 'luk'], stat => {
-      this.statCache[stat] = this.liveStats[stat];
-    });
   }
 
   changeProfession(professionName) {
@@ -138,16 +141,24 @@ export class Character {
     const myScore = myItem ? myItem.score : -1000;
 
     const checkRangeMultiplier = this.$personalities && this.$personalities.isActive('SharpEye') ? 0.65 : 0.05;
-    return checkScore > (myScore * checkRangeMultiplier) && checkScore < rangeBoostMultiplier * this.liveStats.itemFindRange;
+    return checkScore > (myScore * checkRangeMultiplier) && checkScore <= rangeBoostMultiplier * this.liveStats.itemFindRange;
   }
 
   equip(item) {
+    item._wasEquipped = true;
     this.equipment[item.type] = item;
     this.recalculateStats();
 
     if(this.$statistics) {
       this.$statistics.incrementStat('Character.Item.Equip');
     }
+  }
+
+  levelUp() {
+    this._level.add(1);
+    this.resetMaxXp();
+    this._xp.toMinimum();
+    this.recalculateStats();
   }
 
   resetMaxXp() {
@@ -163,16 +174,22 @@ export class Character {
     if(this.gold < 0 || _.isNaN(this.gold)) {
       this.gold = 0;
     }
+    return gold;
   }
 
   gainXp(xp = 1) {
     this._xp.add(xp);
+    return xp;
   }
 
   sellItem(item) {
     const value = Math.max(1, Math.floor(item.score * this.liveStats.itemValueMultiplier));
-    this.$statistics.incrementStat('Character.Item.Sell');
-    this.gainGold(value);
-    return value;
+
+    if(this.$statistics) {
+      this.$statistics.incrementStat('Character.Item.Sell');
+    }
+
+    const gold = this.gainGold(value);
+    return gold;
   }
 }

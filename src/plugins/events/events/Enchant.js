@@ -10,9 +10,11 @@ export const WEIGHT = 2;
 
 // Enchant an item (+special stat, +50 to random stat, +1 enchantLevel)
 export class Enchant extends Event {
+  static WEIGHT = WEIGHT;
+
   static operateOn(player) {
     const item = this.pickValidItemForEnchant(player);
-    if(!item) return;
+    if(!item) return [];
 
     let eventText = this.eventText('enchant', player, { item: item.fullname });
 
@@ -40,5 +42,7 @@ export class Enchant extends Event {
     item.score;
     player.recalculateStats();
     player.$updateEquipment = true;
+
+    return [player];
   }
 }

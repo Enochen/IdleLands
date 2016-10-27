@@ -23,18 +23,26 @@ export class DbWrapper {
     globalPromise = new Promise((resolve, reject) => {
       Logger.info(mongoTag, 'Connecting to database...');
 
-      MongoClient.connect(connectionString, { server: { poolSize: 50, auto_reconnect: true, socketOptions: { keepAlive: 1, connectTimeoutMS: 120000, socketTimeoutMS: 120000 } } }, async(err, db) => {
+      MongoClient.connect(connectionString, {
+        native_parser: true,
+        server: {
+          poolSize: 10, auto_reconnect: true, socketOptions: {
+            keepAlive: 1, connectTimeoutMS: 120000, socketTimeoutMS: 120000
+          }
+        }
+      }, async(err, db) => {
 
         if(err) {
           Logger.error('DB:Init', err);
           return reject(err);
         }
 
-        db.on('close', function() {
+        db.on('close', () => {
           try {
             db.open();
+            Logger.info('DB:Close', 'Attempted reopen.');
           } catch (e) {
-            Logger.error('DB:close, reopen attempt', e);
+            Logger.error('DB:Close', e);
           }
         });
 
@@ -43,9 +51,20 @@ export class DbWrapper {
 
         db.collection('players').updateMany({}, { $set: { isOnline: false } });
 
-        db.collection('battles').createIndex({ happenedAt: 1 }, { expireAfterSeconds: 7200 }, _.noop);
+        db.collection('battles').createIndex({ happenedAt: 1 }, { expireAfterSeconds: 21600 }, _.noop);
 
         Logger.info(mongoTag, 'Connected!');
+
+        db.$$collections = {
+          achievements:       db.collection('achievements'),
+          battles:            db.collection('battles'),
+          collectibles:       db.collection('collectibles'),
+          personalities:      db.collection('personalities'),
+          pets:               db.collection('pets'),
+          players:            db.collection('players'),
+          statistics:         db.collection('statistics')
+        };
+
         resolve(db);
       });
     });

@@ -34,7 +34,8 @@ export class MonsterGenerator extends Generator {
   static generateBoss(name) {
     const boss = _.cloneDeep(Bosses[name]);
     if(!this._isBossAlive(name)) return;
-    boss.stats.name = name;
+    boss.stats.name = `${name}`;
+    boss.stats._name = `${name}`;
     const monster = this.augmentMonster(boss.stats);
     monster.$isBoss = true;
     this.equipBoss(monster, boss.items);
@@ -47,8 +48,10 @@ export class MonsterGenerator extends Generator {
     if(!this._isBossAlive(name)) return;
     return _.map(bossparty.members, member => {
       const boss = _.cloneDeep(Bosses[member]);
-      boss.stats.name = name;
+      boss.stats.name = `${member}`;
+      boss.stats._name = `${member}`;
       const monster = this.augmentMonster(boss.stats);
+      monster.$isBoss = true;
       this.equipBoss(monster, boss.items);
       monster._collectibles = boss.collectibles;
       return monster;
@@ -114,7 +117,7 @@ export class MonsterGenerator extends Generator {
     if(!baseMonster) baseMonster = this.generateVectorMonster(forPlayer);
 
     baseMonster.professionName = baseMonster.class;
-    if(!baseMonster.professionName || baseMonster.professionName === 'Random') {
+    if(!baseMonster.professionName || baseMonster.professionName.toLowerCase() === 'random') {
       baseMonster.professionName = _.sample(_.keys(Professions));
     }
 
@@ -124,7 +127,7 @@ export class MonsterGenerator extends Generator {
     if(baseMonster.name && chance.bool({ likelihood: 1 })) {
       const chanceOpts = { prefix: chance.bool(), suffix: chance.bool(), middle: chance.bool() };
       if(baseMonster.gender) {
-        chanceOpts.gender = baseMonster.gender.toLowerCase();
+        chanceOpts.gender = _.sample(['male', 'female']);
       }
       baseMonster.name = `${chance.name(chanceOpts)}, the ${baseMonster.name}`;
     }

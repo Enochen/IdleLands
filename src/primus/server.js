@@ -26,11 +26,14 @@ export const primus = (() => {
 
   
   const express = require('express');
-  const compression=require('compression');
+  const compression = require('compression');
   const serve = express();
   serve.use(compression(), express.static('assets'));
   serve.get('/online', (req, res) => {
     try {
+      res.set({
+        'Cache-Control': 'public, max-age=86400'
+      });
       res.json({
         players: GameState.getInstance().getPlayers().length,
         sparks: primus.connected
@@ -39,14 +42,7 @@ export const primus = (() => {
       res.send(e);
     }
   });
-  // serve.get('/hello', (req, res) => {
-  //   try {
-  //     const test = require('../../dist/test.js');
-  //     res.send(test.output());
-  //   } catch (e) {
-  //     res.send(e);
-  //   }
-  // });
+
   const finalhandler = require('finalhandler');
 
 // load primus
@@ -81,6 +77,32 @@ export const primus = (() => {
 
   primus.use('rooms', Rooms);
   primus.use('emit', Emit);
+
+  primus.players = {};
+
+  primus.addPlayer = (playerName, spark) => {
+    if(!primus.players[playerName]) primus.players[playerName] = [];
+    _.each(primus.players[playerName], spark => primus.delPlayer(playerName, spark));
+    if(!primus.players[playerName]) primus.players[playerName] = [];
+    primus.players[playerName].push(spark);
+  };
+
+  primus.delPlayer = (playerName, spark) => {
+    primus.players[playerName] = _.without(primus.players[playerName], spark);
+    spark.end();
+    if(!primus.players[playerName].length) {
+      delete primus.players[playerName];
+    }
+  };
+
+  primus.emitToPlayers = (players = [], data) => {
+    _.each(players, player => {
+      _.each(primus.players[player], spark => {
+        spark.write(data);
+      });
+    });
+  };
+
   // primus.use('multiplex', Multiplex);
 
 // force setting up the global connection
@@ -94,6 +116,13 @@ export const primus = (() => {
     _.each(allSocketRequires, obj => obj.socket(spark, primus, (data) => {
       data.event = obj.event;
       respond(data);
+
+      // kill global sparks after 5 seconds
+      if(_.includes(obj.event, 'plugin:global')) {
+        setTimeout(() => {
+          spark.end();
+        }, 5000);
+      }
     }));
 
     spark.on('error', e => {
@@ -108,11 +137,15 @@ export const primus = (() => {
     // spark.join('adventurelog');
   });
 
-  const path = require('path').join(__dirname, '..', '..', 'Play');
-  fs.stat(path, e => {
-    if(e) return;
-    primus.save(`${path}/primus.gen.js`);
-  });
+  if(process.env.NODE_ENV !== 'production') {
+    _.each(['Play', 'Global'], root => {
+      const path = require('path').join(__dirname, '..', '..', root);
+      fs.stat(path, e => {
+        if(e) return;
+        primus.save(`${path}/primus.gen.js`);
+      });
+    });
+  }
 
   return primus;
 })();

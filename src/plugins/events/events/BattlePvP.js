@@ -15,6 +15,8 @@ export const WEIGHT = 4;
 
 // Create a pvp battle
 export class BattlePvP extends Event {
+  static WEIGHT = WEIGHT;
+
   static operateOn(player) {
     if(player.level <= SETTINGS.minBattleLevel) return;
     if(player.$personalities.isActive('Coward') && Event.chance.bool({ likelihood: 75 })) return;
@@ -41,10 +43,10 @@ export class BattlePvP extends Event {
     // XvX
     } else {
       opponent = _(allPlayers)
-        .reject(p => p.level < player.level - SETTINGS.pvpBattleRange || p.level > player.level + SETTINGS.pvpBattleRange)
         .reject(p => p.$personalities.isActive('Camping'))
         .reject(p => p.$personalities.isActive('Coward') && Event.chance.bool({ likelihood: 75 }))
         .reject(p => !p.party || p.party === player.party || p.party.players.length === 1)
+        .reject(p => p.party.level < player.party.level - SETTINGS.pvpBattleRange || p.party.level > player.party.level + SETTINGS.pvpBattleRange)
         .sample();
       if(!opponent) return;
 
@@ -64,6 +66,8 @@ export class BattlePvP extends Event {
       Logger.error('Battle:PvP', e, battle.saveObject());
     }
 
+    const affected = player.party.players.concat(opponent.party.players);
+
     if(player.party.isBattleParty) {
       player.party.disband();
     }
@@ -71,6 +75,8 @@ export class BattlePvP extends Event {
     if(opponent.party.isBattleParty) {
       opponent.party.disband();
     }
+
+    return affected;
   }
 }
 
